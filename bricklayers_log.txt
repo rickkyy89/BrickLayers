@@ -1,0 +1,64 @@
+2025-03-16 17:37:29,786 - ../sample_gcode/Sample_BrickLayersChallengeSimple_5walls.gcode
+2025-03-16 17:37:29,786 - ../sample_brick/SampleBrickLayersChallengeSimple_5walls_brick.gcode
+2025-03-16 17:37:29,845 - travel_speed: 240.0, gcode: G1 Z50 F240
+2025-03-16 17:37:29,846 - travel_speed: 3000.0, gcode: G1 X2 Y10 F3000
+2025-03-16 17:37:29,846 - travel_speed: 5000.0, gcode: G1 X2.3 F5000
+2025-03-16 17:37:29,846 - retraction_speed: 1500.0, gcode: G1 E-2.5 F1500 , retraction_length: 2.5, old_e: 0.0, new_e: -2.5
+2025-03-16 17:37:29,846 - travel_speed: 9000.0, gcode: G1 Z.2 F9000 
+2025-03-16 17:37:29,847 - 
+
+ travel_speed: 9000.0
+ wipe_speed: 7200.0
+ retraction_speed: 1500.0
+ detraction_speed: 2400.0
+ retraction_length: 2.5
+
+
+2025-03-16 17:37:30,352 - ../sample_gcode/Sample_3DBenchy_5walls_classic.gcode
+2025-03-16 17:37:30,352 - ../sample_brick/Sample_3DBenchy_5walls_classic_brick.gcode
+2025-03-16 17:37:30,365 - travel_speed: 240.0, gcode: G1 Z50 F240
+2025-03-16 17:37:30,366 - travel_speed: 3000.0, gcode: G1 X2 Y10 F3000
+2025-03-16 17:37:30,366 - travel_speed: 5000.0, gcode: G1 X2.3 F5000
+2025-03-16 17:37:30,366 - retraction_speed: 1500.0, gcode: G1 E-2.5 F1500, retraction_length: 2.5, old_e: 0.0, new_e: -2.5
+2025-03-16 17:37:30,366 - travel_speed: 9000.0, gcode: G1 Z.2 F9000
+2025-03-16 17:37:30,368 - 
+
+ travel_speed: 9000.0
+ wipe_speed: 7200.0
+ retraction_speed: 1500.0
+ detraction_speed: 2400.0
+ retraction_length: 2.5
+
+
+2025-03-16 17:37:55,642 - ../sample_gcode/Sample_BrickLayersChallengeSimple_5walls.gcode
+2025-03-16 17:37:55,642 - ../sample_brick/SampleBrickLayersChallengeSimple_5walls_brick.gcode
+2025-03-16 17:37:55,649 - travel_speed: 240.0, gcode: G1 Z50 F240
+2025-03-16 17:37:55,650 - travel_speed: 3000.0, gcode: G1 X2 Y10 F3000
+2025-03-16 17:37:55,650 - travel_speed: 5000.0, gcode: G1 X2.3 F5000
+2025-03-16 17:37:55,650 - retraction_speed: 1500.0, gcode: G1 E-2.5 F1500 , retraction_length: 2.5, old_e: 0.0, new_e: -2.5
+2025-03-16 17:37:55,650 - travel_speed: 9000.0, gcode: G1 Z.2 F9000 
+2025-03-16 17:37:55,651 - 
+
+ travel_speed: 9000.0
+ wipe_speed: 7200.0
+ retraction_speed: 1500.0
+ detraction_speed: 2400.0
+ retraction_length: 2.5
+
+
+2025-03-16 17:37:56,162 - ../sample_gcode/Sample_3DBenchy_5walls_classic.gcode
+2025-03-16 17:37:56,163 - ../sample_brick/Sample_3DBenchy_5walls_classic_brick.gcode
+2025-03-16 17:37:56,172 - travel_speed: 240.0, gcode: G1 Z50 F240
+2025-03-16 17:37:56,172 - travel_speed: 3000.0, gcode: G1 X2 Y10 F3000
+2025-03-16 17:37:56,172 - travel_speed: 5000.0, gcode: G1 X2.3 F5000
+2025-03-16 17:37:56,173 - retraction_speed: 1500.0, gcode: G1 E-2.5 F1500, retraction_length: 2.5, old_e: 0.0, new_e: -2.5
+2025-03-16 17:37:56,173 - travel_speed: 9000.0, gcode: G1 Z.2 F9000
+2025-03-16 17:37:56,175 - 
+
+ travel_speed: 9000.0
+ wipe_speed: 7200.0
+ retraction_speed: 1500.0
+ detraction_speed: 2400.0
+ retraction_length: 2.5
+
+
