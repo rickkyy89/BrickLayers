@@ -1,0 +1,55 @@
+name: Update Version in bricklayers.py
+
+on:
+  push:
+    branches:
+      - main  # Runs on push to main branch
+    tags:
+      - "*"   # Also runs when a new tag is pushed
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensures we get full commit history for versioning
+
+      - name: Get latest version (with commit count)
+        id: get_version
+        run: echo "VERSION=$(git describe --tags --always)" >> $GITHUB_ENV
+
+      - name: Check if bricklayers.py has changed
+        id: check_changes
+        run: |
+          if git diff --name-only HEAD~1 | grep -q 'bricklayers.py'; then
+            echo "CHANGED=true" >> $GITHUB_ENV
+          else
+            echo "CHANGED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Replace version in bricklayers.py (Only if changed)
+        if: env.CHANGED == 'true'
+        run: |
+          sed -i 's/__version__ = "v0.0.0"/__version__ = "'"${{ env.VERSION }}"'"/' bricklayers.py
+
+      - name: Check if version change needs a commit
+        id: check_commit
+        run: |
+          if git diff -- bricklayers.py | grep -q '__version__'; then
+            echo "NEEDS_COMMIT=true" >> $GITHUB_ENV
+          else
+            echo "NEEDS_COMMIT=false" >> $GITHUB_ENV
+          fi
+
+      - name: Commit and push changes (Only if needed)
+        if: env.NEEDS_COMMIT == 'true'
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add bricklayers.py
+          git commit -m "Update version to ${{ env.VERSION }}"
+          git push
+
