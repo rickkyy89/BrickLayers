@@ -23,15 +23,23 @@ Edit the **"Post processing scripts"** section in your slicer.
 
 ---
 
-## Command Line
+## Command Line Interface
 You can use the script to modify GCode files outside of the slicer.
 First, I recommend you to check 2 examples in this file:
 https://github.com/GeekDetour/BrickLayers/blob/main/sample_tests/simpletest.sh
 
-If you downloaded or clonned the repository, in your Terminal:
-- ```cd sample_tests```
-- ```chmod +x simpletest.sh```
-- ```./simpletest.sh```
+Try running it once, as provided.
+
+If you downloaded or cloned the repository, in your Terminal, go to the repository and:
+```sh
+cd sample_tests
+chmod +x simpletest.sh # gives execution permission if needed
+./simpletest.sh
+```
+
+You should see something like this:
+![running the simpletest.sh on your machine](docs/img/cli_simpletest.png)
+
 
 ---
 
