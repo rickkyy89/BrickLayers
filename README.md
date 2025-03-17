@@ -26,6 +26,10 @@ Edit the **"Post processing scripts"** section in your slicer.
 ### 🍏 **Mac Example (Using PyPy)**
 ```/usr/local/bin/pypy3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 
+**PrusaSlicer Users:**  
+You **must disable** `"Supports binary G-code"` in **Printers → General → Firmware** (Expert Mode) 
+The Binary G-code format is incompatible with post-processing scripts.
+
 ---
 
 ## Command Line Interface
