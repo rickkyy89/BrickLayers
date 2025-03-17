@@ -33,7 +33,7 @@ jobs:
       - name: Replace version in bricklayers.py (Only if changed)
         if: env.CHANGED == 'true'
         run: |
-          sed -i 's/__version__ = "v0.0.0"/__version__ = "'"${{ env.VERSION }}"'"/' bricklayers.py
+          sed -i 's/^__version__ =.*/__version__ = "'"${{ env.VERSION }}"'"  # Updated by GitHub Actions/' bricklayers.py
 
       - name: Check if version change needs a commit
         id: check_commit
