@@ -1620,7 +1620,8 @@ class BrickLayersProcessor:
 
                 else: # When it layers to be ignored:
                     # This Perimiter is part of a Layer that should NOT be modified. Just append:
-                    buffer_lines.append(myline)
+                    if myline is not None:
+                        buffer_lines.append(myline)
 
 
 
@@ -1786,9 +1787,9 @@ class BrickLayersProcessor:
                 #outfile.writelines([gcodeline.to_gcode() for gcodeline in buffer_lines]) #OLD WAY
                 # Generator way:
                 if not self.yield_objects:
-                    yield from (gcodeline.to_gcode() for gcodeline in buffer_lines)
+                    yield from (gcodeline.to_gcode() for gcodeline in buffer_lines if gcodeline is not None)
                 else:
-                    yield from buffer_lines
+                    yield from (buffer_line for buffer_line in buffer_lines if buffer_line is not None)
                 buffer_lines.clear()
 
                 # Clear the structure for deffered perimeters, ready for the next Layer:
@@ -1802,7 +1803,8 @@ class BrickLayersProcessor:
             #
             if not feature.internal_perimeter:
                 # Adds all the normal lines to the buffer:
-                buffer_lines.append(myline)
+                if myline is not None:
+                    buffer_lines.append(myline)
 
             # Exception for pretty visualization on PrusaSlicer and OrcaSlicer preview:
             # Forces a "Width" after an External Perimeter begins, to make them look like they actually ARE.
@@ -2172,7 +2174,8 @@ Argument names are case-insensitive, so:
 
             # Write processed G-code to the output file
             for processed_line in processed_gcode:
-                outfile.write(processed_line)
+                if processed_line is not None: # TODO: why does some people get a None line?! 
+                    outfile.write(processed_line)
     
 
         # If using a temporary file, replace the original input_file
