@@ -1,6 +1,11 @@
 # Bricklayers
 Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and BambuStudio
 
+## Video about this script:
+[![Brick Layers for everybody](https://img.youtube.com/vi/qqJOa46OTTs/maxresdefault.jpg)](https://www.youtube.com/watch?v=qqJOa46OTTs)
+
+---
+
 ## Install Python or Pypy
 To use the script, you need **Python** or **PyPy** (faster) installed:
 [Download Python](https://www.python.org/downloads/)
@@ -48,7 +53,3 @@ You should see something like this:
 
 **Detailed instructions in the next hours. Thanks for your patience.**
 
----
-
-## Video about this script:
-[![Brick Layers for everybody](https://img.youtube.com/vi/qqJOa46OTTs/maxresdefault.jpg)](https://www.youtube.com/watch?v=qqJOa46OTTs)
