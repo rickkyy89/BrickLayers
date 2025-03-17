@@ -1955,8 +1955,8 @@ if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser(
-        description="""\
-BrickLayers by Geek Detour
+        description=f"""\
+BrickLayers by Geek Detour  ({__version__})
 Post-process GCode for BrickLayers Z-shifting with extrusion adjustments.
 https://github.com/GeekDetour/BrickLayers
 
@@ -1968,6 +1968,7 @@ Argument names are case-insensitive, so:
     add_help=False,
     )
     parser.add_argument("-h", "--help", action="help", help="Show this help message and exit.\n\n")
+    parser.add_argument("-v", "--version", action="version", version=f"Brick Layers by Geek Detour {__version__}")
     parser.add_argument("input_file", 
                          help="\nPath to the input G-code file\n\n")
     parser.add_argument("-outputFile", 
@@ -2117,7 +2118,7 @@ Argument names are case-insensitive, so:
 
             # Output Parameters to be used:
             print("\n")
-            print("▁▃▅▆ Brick Layers ▆▅▃▁\n")
+            print(f"▁▃▅▆ Brick Layers ▆▅▃▁  ({__version__})\n")
             print(" Input File:           ", input_file)
             print(" Output File:          ", final_output_file)
             print(" Extrusion Multiplier: ", args_dict["extrusionmultiplier"])
