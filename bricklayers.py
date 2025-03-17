@@ -2162,7 +2162,7 @@ Argument names are case-insensitive, so:
         # print(final_output_file)
 
         # Open the input and output files using Generators:
-        with open(input_file, "r", encoding="utf-8", errors="replace", newline="") as infile, open(final_output_file, "w", encoding="utf-8", newline="") as outfile:
+        with open(input_file, "r", encoding="utf-8", errors="replace", newline="") as infile, open(final_output_file, "w", encoding="utf-8", newline="\n") as outfile:
             # Pass the file generator (line-by-line) to process_gcode
             gcode_stream = (line for line in infile)  # Efficient generator
 
@@ -2184,7 +2184,7 @@ Argument names are case-insensitive, so:
                     break  # If successful, exit the loop
                 except Exception:
                     try:
-                        with open(final_output_file, "r", encoding="utf-8", newline="") as temp_f, open(input_file, "w", encoding="utf-8", newline="") as input_f:
+                        with open(final_output_file, "r", encoding="utf-8", newline="") as temp_f, open(input_file, "w", encoding="utf-8", newline="\n") as input_f:
                             input_f.write(temp_f.read())
                         break  # If successful, exit the loop
                     except Exception:
