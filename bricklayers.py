@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-__version__ = "v0.2.0-23-gb389087"  # Updated by GitHub Actions
+__version__ = "v0.2.0-25-g90b4978"  # Updated by GitHub Actions
 
 # Brick Layers by Geek Detour
 # Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and BambuStudio
