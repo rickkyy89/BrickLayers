@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main  # Runs on push to main branch
+    paths:
+      - bricklayers.py  # ONLY run workflow if bricklayers.py changes
     tags:
       - "*"   # Also runs when a new tag is pushed
 
