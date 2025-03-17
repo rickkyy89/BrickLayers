@@ -33,7 +33,7 @@ Try running it once, as provided.
 If you downloaded or cloned the repository, in your Terminal, go to the repository and:
 ```sh
 cd sample_tests
-chmod +x simpletest.sh # gives execution permission if needed
+chmod +x simpletest.sh
 ./simpletest.sh
 ```
 
