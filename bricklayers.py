@@ -2042,7 +2042,8 @@ Argument names are case-insensitive, so:
         is_uploading = any(tmp in normalized_input_file for tmp in [
             "/tmp/",
             "/temp/",
-            "/appdata/local/temp/"
+            "/appdata/local/temp",
+            "/temp."
         ])
 
         # Convert -ignoreLayersFromTo list into tuples of 2
