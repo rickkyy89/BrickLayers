@@ -11,11 +11,14 @@ jobs:
   update-version:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write  # Grants GitHub Actions permission to push changes
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensures we get full commit history for versioning
+          fetch-depth: 0  # Ensures full commit history is available
 
       - name: Get latest version (with commit count)
         id: get_version
