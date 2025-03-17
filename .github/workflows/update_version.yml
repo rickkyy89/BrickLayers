@@ -21,27 +21,17 @@ jobs:
         id: get_version
         run: echo "VERSION=$(git describe --tags --always)" >> $GITHUB_ENV
 
-      - name: Check if bricklayers.py has changed
-        id: check_changes
-        run: |
-          if git diff --name-only HEAD~1 | grep -q 'bricklayers.py'; then
-            echo "CHANGED=true" >> $GITHUB_ENV
-          else
-            echo "CHANGED=false" >> $GITHUB_ENV
-          fi
-
-      - name: Replace version in bricklayers.py (Only if changed)
-        if: env.CHANGED == 'true'
+      - name: Replace version in bricklayers.py
         run: |
           sed -i 's/^__version__ =.*/__version__ = "'"${{ env.VERSION }}"'"  # Updated by GitHub Actions/' bricklayers.py
 
       - name: Check if version change needs a commit
         id: check_commit
         run: |
-          if git diff -- bricklayers.py | grep -q '__version__'; then
-            echo "NEEDS_COMMIT=true" >> $GITHUB_ENV
-          else
+          if git diff --quiet bricklayers.py; then
             echo "NEEDS_COMMIT=false" >> $GITHUB_ENV
+          else
+            echo "NEEDS_COMMIT=true" >> $GITHUB_ENV
           fi
 
       - name: Commit and push changes (Only if needed)
@@ -52,4 +42,3 @@ jobs:
           git add bricklayers.py
           git commit -m "Update version to ${{ env.VERSION }}"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
-
