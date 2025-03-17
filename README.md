@@ -23,6 +23,18 @@ Edit the **"Post processing scripts"** section in your slicer.
 
 ---
 
+## Command Line
+You can use the script to modify GCode files outside of the slicer.
+First, I recommend you to check 2 examples in this file:
+https://github.com/GeekDetour/BrickLayers/blob/main/sample_tests/simpletest.sh
+
+If you downloaded or clonned the repository, in your Terminal:
+- ```cd sample_tests```
+- ```chmod +x simpletest.sh```
+- ```./simpletest.sh```
+
+---
+
 ## Features
 **Automatically detects Layer Height and Retraction settings**.
 
