@@ -1813,9 +1813,8 @@ class BrickLayersProcessor:
             # Exception for pretty visualization on PrusaSlicer and OrcaSlicer preview:
             # Forces a "Width" after an External Perimeter begins, to make them look like they actually ARE.
             if feature.justgotinside_external_perimeter: # SURE: WITHOUT this width, the preview gets very ugly from continuing with wrong widths
-                buffer_lines.append(from_gcode(f"{simulator.const_width}{current_state.width}\n"))
-                pass
-
+                if simulator.const_width is not None:
+                    buffer_lines.append(from_gcode(f"{simulator.const_width}{current_state.width}\n"))
 
             # After every line simulation, keeps a copy as "previous" state:
             previous_state = current_state
