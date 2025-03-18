@@ -46,9 +46,10 @@ In "Quality", "Walls printing order" be sure you select **"Inner/Outer"** - this
 In **Prusa Slicer** you can choose **Classic** or **Arachne**, both work equaly fine. 
 But on **Orca Slicer** and **Bambu Studio** forks, Arachne sometimes creates orphaned loops that will turn into minor glitches in Brick Layers (I cannot fix, so far) - so I recommend **'Classic'**.
 
-**PrusaSlicer Users:**
-You **must disable** `"Supports binary G-code"` in **Printers → General → Firmware** (Expert Mode) 
-The Binary G-code format is incompatible with post-processing scripts.
+### **Binary G-code** on Prusa Slicer:
+You must **disable** `"Supports binary G-code"` in **Printers → General → Firmware** (Expert Mode)
+
+The Binary G-code format is **incompatible with post-processing scripts**.
 
 ---
 
