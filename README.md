@@ -7,9 +7,9 @@ Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and Bamb
 ---
 
 ## Install Python or Pypy
-To use the script, you need **Python** installed in your machine:
-- [Download Python](https://www.python.org/downloads/) CPython, or
-- [Download PyPy](https://pypy.org/download.html) PYPY (faster)
+To use the script, you need **Python 3** installed in your machine:
+- [Download Python 3](https://www.python.org/downloads/) CPython, or
+- [Download PyPy 3](https://pypy.org/download.html) PYPY (faster)
 
 ---
 
