@@ -1838,6 +1838,14 @@ class BrickLayersProcessor:
         #logger.debug("Finished.")
 
 
+def gcode_opener(path, flags):
+    file=os.open(path, flags)
+    header=os.pread(file,4,0)
+    if header==bytes("GCDE","ascii"):
+        os.close(file) #do not leak the file descriptor
+        print(f"{error_marker}The specified output folder '{input_file}' is a binary gcode file, which is not supported. Disable binary gcode in your slicer settings", file=sys.stderr)
+        sys.exit(1)  # Exit immediately
+    return file
 
 # Main execution
 if __name__ == "__main__":
@@ -2169,7 +2177,7 @@ Argument names are case-insensitive, so:
         # print(final_output_file)
 
         # Open the input and output files using Generators:
-        with open(input_file, "r", encoding="utf-8", errors="replace", newline="") as infile, open(final_output_file, "w", encoding="utf-8", newline="\n") as outfile:
+        with open(input_file, 'r', encoding="utf8", newline="",opener=gcode_opener) as infile, open(final_output_file, 'w') as outfile:
             # Pass the file generator (line-by-line) to process_gcode
             gcode_stream = (line for line in infile)  # Efficient generator
 
