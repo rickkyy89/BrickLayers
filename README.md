@@ -38,6 +38,12 @@ Edit the **"Post processing scripts"** section in your slicer.
 - PyPy3 (installed locally):<br>
 ```/Users/YourName/.pyenv/versions/pypy3/bin/pypy3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 
+**Wall Generator** and **Walls printing order**:
+In "Quality", "Walls printing order" be sure you select **"Inner/Outer"** - this is very important for the right detection of the Loops 'Depth':
+!['Wall generator' to 'Classic' and 'Inner/Outer', in Orca Slicer](docs/img/wallorder_orca.png)
+In **Prusa Slicer** you can choose **Classic** or **Arachne**, both work equaly fine. 
+But on **Orca Slicer** and **Bambu Studio** forks, Arachne sometimes creates orphaned loops that will turn into minor glitches in Brick Layers (I cannot fix, so far) - so I recommend **'Classic'**.
+
 **PrusaSlicer Users:**
 You **must disable** `"Supports binary G-code"` in **Printers → General → Firmware** (Expert Mode) 
 The Binary G-code format is incompatible with post-processing scripts.
