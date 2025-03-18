@@ -38,7 +38,7 @@ Edit the **"Post processing scripts"** section in your slicer.
 - PyPy3 (installed locally):<br>
 ```/Users/YourName/.pyenv/versions/pypy3/bin/pypy3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 
-**Wall Generator** and **Walls printing order**:
+### **Wall Generator** and **Walls printing order**:
 In "Quality", "Walls printing order" be sure you select **"Inner/Outer"** - this is very important for the right detection of the Loops 'Depth':
 !['Wall generator' to 'Classic' and 'Inner/Outer', in Orca Slicer](docs/img/wallorder_orca.png)
 In **Prusa Slicer** you can choose **Classic** or **Arachne**, both work equaly fine. 
