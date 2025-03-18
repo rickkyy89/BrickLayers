@@ -20,7 +20,7 @@ Edit the **"Post processing scripts"** section in your slicer.
 - Your **Python installation** folder.
 - The folder where **you saved `bricklayers.py`**.
 
-### **Windows Example 🖥️**
+### **Windows Examples 🖥️**
 - Normal Python (CPython):<br>
 ```%USERPROFILE%\AppData\Local\Programs\Python\Python313\python.exe C:\3DPrinting\Scripts\bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 - PYPY3:<br>
@@ -36,7 +36,7 @@ Edit the **"Post processing scripts"** section in your slicer.
 - PyPy3 (installed locally):<br>
 ```/Users/YourName/.pyenv/versions/pypy3/bin/pypy3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 
-**PrusaSlicer Users:**  
+**PrusaSlicer Users:**
 You **must disable** `"Supports binary G-code"` in **Printers → General → Firmware** (Expert Mode) 
 The Binary G-code format is incompatible with post-processing scripts.
 
