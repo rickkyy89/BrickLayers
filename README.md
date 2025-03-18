@@ -40,7 +40,9 @@ Edit the **"Post processing scripts"** section in your slicer.
 
 ### **Wall Generator** and **Walls printing order**:
 In "Quality", "Walls printing order" be sure you select **"Inner/Outer"** - this is very important for the right detection of the Loops 'Depth':
+
 !['Wall generator' to 'Classic' and 'Inner/Outer', in Orca Slicer](docs/img/wallorder_orca.png)
+
 In **Prusa Slicer** you can choose **Classic** or **Arachne**, both work equaly fine. 
 But on **Orca Slicer** and **Bambu Studio** forks, Arachne sometimes creates orphaned loops that will turn into minor glitches in Brick Layers (I cannot fix, so far) - so I recommend **'Classic'**.
 
