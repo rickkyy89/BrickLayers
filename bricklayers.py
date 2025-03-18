@@ -1503,7 +1503,7 @@ class BrickLayersProcessor:
         # Process the G-code
         #READING ONE LINE AT A TIME FROM A GENERATOR (the input)
         for line_number, line in enumerate(gcode_stream, start=1):
-            bytes_received += len(line.encode("ascii")) 
+            bytes_received += len(line.encode("utf-8")) 
 
 
             #
