@@ -16,6 +16,8 @@ To use the script, you need **Python 3** installed in your machine:
 ## Setup in your Slicer
 Edit the **"Post processing scripts"** section in your slicer.
 
+!['Post-processing Scripts' example, in Orca Slicer](docs/img/postprocessingscripts_orca.png)
+
 **Make sure to update the path** to match:
 - Your **Python installation** folder.
 - The folder where **you saved `bricklayers.py`**.
