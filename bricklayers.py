@@ -1119,7 +1119,7 @@ class BrickLayersProcessor:
                 gcodes.append(from_gcode(f"G1 Z{z:.2f} ; BRICK: Target Position\n"))
             gcodes.append(from_gcode(f"G1 E{simulator.retraction_length:.2f} F{int(simulator.retraction_speed)} ; BRICK: Urnetract\n"))
 
-        else:
+        elif simulator.retraction_speed>0 and simulator.wipe_speed>0:
             # wipe with travel:
             gcodes.append(from_gcode(f"G1 E-{stopped_pull:.2f} F{int(simulator.retraction_speed)} ; BRICK: Retraction \n"))
             gcodes.append(from_gcode(feature.const_wipe_start))
@@ -1131,7 +1131,11 @@ class BrickLayersProcessor:
             if z is not None:
                 gcodes.append(from_gcode(f"G1 Z{z:.2f} ; BRICK: Target Position\n"))
             gcodes.append(from_gcode(f"G1 E{simulator.retraction_length:.2f} F{int(simulator.retraction_speed)} ; BRICK: Urnetract\n"))
-
+        else:
+            # travel without wiping
+            gcodes.append(from_gcode(f"G1 X{target_state.x} Y{target_state.y}{hopping_z} F{int(simulator.travel_speed)} ; BRICK: Target Position\n"))
+            if z is not None:
+                gcodes.append(from_gcode(f"G1 Z{z:.2f} ; BRICK: Target Position\n"))
         return gcodes
 
 
