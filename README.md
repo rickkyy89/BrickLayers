@@ -20,14 +20,21 @@ Edit the **"Post processing scripts"** section in your slicer.
 - Your **Python installation** folder.
 - The folder where **you saved `bricklayers.py`**.
 
-### 🖥️ **Windows Example**
+### **Windows Example 🖥️**
 - Normal Python (CPython):<br>
 ```%USERPROFILE%\AppData\Local\Programs\Python\Python313\python.exe C:\3DPrinting\Scripts\bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 - PYPY3:<br>
 ```C:\3DPrinting\pypy3.11-v7.3.19-win64\pypy3.exe C:\3DPrinting\Scripts\bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 
-### 🍏 **Mac Example (Using PyPy)**
+### **Mac/Linux Examples 🍏 🐧 **
+- CPython (installed globally):<br>
+```/usr/local/bin/python3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
+- CPython (installed locally):<br>
+```/Users/YourName/.pyenv/shims/python3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
+- PyPy3 (installed globally):<br>
 ```/usr/local/bin/pypy3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
+- PyPy3 (installed locally):<br>
+```/Users/YourName/.pyenv/versions/pypy3/bin/pypy3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 
 **PrusaSlicer Users:**  
 You **must disable** `"Supports binary G-code"` in **Printers → General → Firmware** (Expert Mode) 
