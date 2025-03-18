@@ -26,7 +26,7 @@ Edit the **"Post processing scripts"** section in your slicer.
 - PYPY3:<br>
 ```C:\3DPrinting\pypy3.11-v7.3.19-win64\pypy3.exe C:\3DPrinting\Scripts\bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 
-### **Mac/Linux Examples 🍏 🐧 **
+### **Mac/Linux Examples 🍏 🐧**
 - CPython (installed globally):<br>
 ```/usr/local/bin/python3 /Volumes/3DPrinting/Scripts/bricklayers.py -startAtLayer 3 -extrusionMultiplier 1.05 -enabled 1;```
 - CPython (installed locally):<br>
