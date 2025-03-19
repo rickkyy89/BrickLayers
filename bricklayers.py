@@ -2035,13 +2035,12 @@ Argument names are case-insensitive, so:
 
 
     def gcode_opener(path, flags):
-        file=os.open(path, flags)
-        header=os.pread(file,4,0)
-        if header==bytes("GCDE","ascii"):
-            os.close(file) #do not leak the file descriptor
-            print(f"{error_marker}The file '{input_file}' is a binary gcode file, which is not supported. Disable Binary G-code in your slicer settings", file=sys.stderr)
+        with open(path, "rb") as f:  # Open in binary mode
+            header = f.read(4)  # Read the first 4 bytes
+        if header == b"GCDE":  # Use byte-string for direct comparison
+            print(f"{error_marker}The file '{path}' is a binary G-code file, which is not supported. Disable Binary G-code in your slicer settings.", file=sys.stderr)
             sys.exit(1)  # Exit immediately
-        return file
+        return os.open(path, flags)  # Open the file descriptor only if valid
 
 
     # Only process the file if Brick Layers if enabled
@@ -2179,7 +2178,7 @@ Argument names are case-insensitive, so:
         # print(final_output_file)
 
         # Open the input and output files using Generators:
-        with open(input_file, 'r', encoding="utf8", newline="",opener=gcode_opener) as infile, open(final_output_file, 'w', encoding="utf-8", newline="\n") as outfile:
+        with open(input_file, 'r', encoding="utf8", newline="", opener=gcode_opener) as infile, open(final_output_file, 'w', encoding="utf-8", newline="\n") as outfile:
             # Pass the file generator (line-by-line) to process_gcode
             gcode_stream = (line for line in infile)  # Efficient generator
 
