@@ -5,6 +5,13 @@ Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and Bamb
 [![Brick Layers for everybody](https://img.youtube.com/vi/qqJOa46OTTs/maxresdefault.jpg)](https://www.youtube.com/watch?v=qqJOa46OTTs)
 
 ---
+# IMPORTANT NOTICE:
+
+In the past days we've been making constant changes to this script. Some bugs were fixed, a couple of thinks were broken.
+
+Right now, actual printing is not producing good results. As soon as it get's acceptable again, I'll say it here. Thanks!
+
+---
 
 ## Install Python or Pypy
 To use the script, you need **Python 3** installed in your machine:
