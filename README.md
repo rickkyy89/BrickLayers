@@ -7,9 +7,9 @@ Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and Bamb
 ---
 # IMPORTANT NOTICE:
 
-In the past days we've been making constant changes to this script. Some bugs were fixed, a couple of thinks were broken.
+In the past days we've been making constant changes to this script. Some bugs were fixed, a couple of things were broken.
 
-Right now, actual printing is not producing good results. As soon as it get's acceptable again, I'll say it here. Thanks!
+Right now, actual printing is not producing good results. As soon as it gets acceptable again, I'll say it here. Thanks!
 
 ---
 
