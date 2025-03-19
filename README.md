@@ -60,6 +60,18 @@ The Binary G-code format is **incompatible with post-processing scripts**.
 
 ---
 
+# How to see the Preview?
+
+Saddly, none of the slicers show the changes automatically - which is weird since we can see they are running the Post-processing Script every time we slice.
+
+We need to **drag the exported gcode file back to the Slicer** to see the results of any Post-Processing Script.
+
+I wish this was different. Post-processing scripts would be more appealing if previewing was automatic.
+
+More details: https://github.com/GeekDetour/BrickLayers/issues/20
+
+---
+
 ## Command Line Interface
 You can use the script to modify GCode files outside of the slicer.
 First, I recommend you to check 2 examples in this file:
