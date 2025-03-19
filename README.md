@@ -90,10 +90,4 @@ You should see something like this:
 ![running the simpletest.sh on your machine](docs/img/cli_simpletest.png)
 
 
----
-
-## Features
-**Automatically detects Layer Height and Retraction settings**.
-
-**Detailed instructions in the next hours. Thanks for your patience.**
 
