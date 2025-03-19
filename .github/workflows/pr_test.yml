@@ -1,0 +1,24 @@
+name: Test Brick Layer still works
+
+on:
+  pull_request:
+        branches:
+            - main
+
+jobs:
+    test:
+        strategy:
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+                py: [3.13, pypy3.11]
+        name: Bricklayer on ${{ matrix.os }} with ${{ matrix.py }}
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with: 
+                python-version: ${{ matrix.py }}
+                check-latest: true
+            - name: Run bricklayer.py
+              run: |
+                python3 ./bricklayers.py ./sample_gcode/Sample_BrickLayersChallengeSimple_5walls.gcode -outputFile ./sample_brick/SampleBrickLayersChallengeSimple_5walls_brick.gcode -extrusionMultiplier 1.05 -verbosity 1
