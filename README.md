@@ -5,7 +5,7 @@ Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and Bamb
 [![Brick Layers for everybody](https://img.youtube.com/vi/qqJOa46OTTs/maxresdefault.jpg)](https://www.youtube.com/watch?v=qqJOa46OTTs)
 
 ---
-# IMPORTANT NOTICE:
+# ⚠️ IMPORTANT NOTICE ⚠️
 
 We've been making constant changes to this script in the past few days. Many bugs were fixed, a couple of things broke — specifically travel, retraction, and wiping.
 
