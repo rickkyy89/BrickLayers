@@ -557,7 +557,7 @@ class GCodeSimulator:
     It uses `__slots__` to minimize memory overhead, and make it efficient for parsing large G-code files.
     """
 
-    __slots__ = ('x', 'y', 'z', 'e', 'f', 'retracted', 'width', 'absolute_positioning', 'relative_extrusion', 'is_moving', 'is_extruding', 'is_retracting', 'just_started_extruding', 'just_stopped_extruding', 'travel_speed', 'wipe_speed', 'retraction_speed', 'detraction_speed', 'retraction_length')
+    __slots__ = ('x', 'y', 'z', 'e', 'f', 'retracted', 'width', 'absolute_positioning', 'relative_extrusion', 'is_moving', 'is_extruding', 'is_retracting', 'just_started_extruding', 'just_stopped_extruding', 'moved_in_xy', 'travel_speed', 'wipe_speed', 'retraction_speed', 'detraction_speed', 'retraction_length')
 
     DEF_WIDTHS = (";WIDTH:", "; LINE_WIDTH: ")    # tupple, for line.startswith
 
@@ -573,6 +573,7 @@ class GCodeSimulator:
         self.is_retracting = False  # Tracks whether extrusion is happening
         self.just_started_extruding = False
         self.just_stopped_extruding = False  # Tracks whether a MOVEMENT doesn't extrude, right after another MOVEMENT that was extruding
+        self.moved_in_xy = False # Tracks movements that occur in X and Y
         self.travel_speed = 0
         self.wipe_speed = 0
         self.retraction_speed = 0
@@ -606,6 +607,7 @@ class GCodeSimulator:
                 old_extruding = self.is_extruding
 
                 # Reset line flags
+                self.moved_in_xy = False
                 self.is_extruding = False
                 self.is_retracting = False
                 self.just_stopped_extruding = False
@@ -653,6 +655,8 @@ class GCodeSimulator:
                 y_move = (new_y != old_y)
                 z_move = (new_z != old_z)
                 had_a_movement_change = x_move or y_move or z_move # In this very line
+
+                self.moved_in_xy = x_move or y_move
 
                 just_feed_rate = ( has_f and not (has_x or has_y or has_z) )
 
@@ -941,8 +945,14 @@ class BrickLayersProcessor:
         self.experimental_arcflick = False # If True, turns On "ARC Flick" after wiping, an experiment to free the nozzle from stringing
         self.travel_threshold = 3 #mm If the distance to move between points is smaller than this, don't wipe, just move.
         self.wipe_distance = 2.5  #mm Total distance we want to wipe
+        self.retract_before_wipe = 0.8 # Float between 0 and 1 - if 0 all the retraction will be done in a wipe. If 1, all the retaction is without a wipe.
         self.travel_zhop = 0.4 #mm Vertical distance to move up when traveling to distante points
-
+        self.retracted = 0.0 #mm Like a 'Debt' value: how much it has been retracted so far, for detraction to restitute later
+        self.last_travelled_gcode_line = None # Experiment...
+        self.last_internalperimeter_state = None # Experiment...
+        self.last_internalperimeter_xy_line = None # Experiment...
+        self.last_noninternalperimeter_state = None # Experiment...
+        self.last_noninternalperimeter_xy_line = None # Experiment...
 
     def set_progress_callback(self, callback: Callable[[dict], None]):
         """Sets the progress callback function."""
@@ -979,31 +989,164 @@ class BrickLayersProcessor:
 
         myline.gcode = command + "\n"
         return myline # keeps the states, just change the actual gcode string
-    
-
-    def retraction_to_state(self, target_state, simulator):
-        # Abandoned in favor of `wipe_movement`
-        gcode_list = []
-        # You can tweak the ration between how much is retracted while stopped, and then while traveling:
-        from_gcode = GCodeLine.from_gcode
-        stopped_pull = simulator.retraction_length * 0.85  # 90% first, stopped
-        moving_pull  = simulator.retraction_length * 0.15  # 10% while travelling
-        gcode_list.append(from_gcode(f"G1 E-{stopped_pull:.2f} F{int(simulator.retraction_speed)} ; BRICK: Retraction \n"))
-        gcode_list.append(from_gcode(f"G1 X{target_state.x} Y{target_state.y} E-{moving_pull:.2f} F{int(simulator.travel_speed)} ; BRICK: Retraction Travel\n"))
-        gcode_list.append(from_gcode(f"G1 E{simulator.retraction_length:.2f} F{int(simulator.detraction_speed)} ; BRICK: Urnetract\n"))
-        gcode_list.append(from_gcode(f"G1 F{int(target_state.f)} ; BRICK: Feed Rate\n"))
-        return gcode_list
 
 
-    def wipe_movement(self, loop, target_state, simulator, feature, z = None):
+
+    def travel_to(self, target_state, simulator, feature, loop = None, start_state = None, z = None):
+        from_gcode = GCodeLine.from_gcode # faster lookup
+        gcodes = []
+
+        travel_threshold = self.travel_threshold
+
+        if loop is not None:
+            start_pos = loop[-1].current
+        elif start_state is not None:
+            start_pos = start_state
+
+        if Point.distance_between_points(start_pos, target_state) < travel_threshold :
+            # Simple Travel - no wipe nor retraction (very close travel)
+            move = from_gcode(f"G1 X{target_state.x} Y{target_state.y} F{int(simulator.travel_speed)} ; BRICK: Travel (no-retraction)\n") # Simple Move
+            gcodes.append(move)
+            self.last_travelled_gcode_line = move # last move tracking
+            self.last_internalperimeter_xy_line = move
+            gcodes.append(from_gcode(f"G1 F{int(target_state.f)} ; BRICK: Feed Rate (no wipe)\n")) # Simple Feed
+            return gcodes
+
+        # Retraction, Wipe, Travel, Unretraction
+        if simulator.retraction_length > 0 and simulator.retraction_speed > 0:
+            # Retraction:
+            if simulator.wipe_speed == 0:
+                retraction = simulator.retraction_length
+            else:
+                retraction = simulator.retraction_length * self.retract_before_wipe
+            gcodes.append(from_gcode(f"G1 E-{retraction:.2f} F{int(simulator.retraction_speed)} ; BRICK: Retraction \n"))
+            self.retracted = self.retracted - retraction # Retraction Debt
+
+            # Wipe:
+            if loop is not None and simulator.wipe_speed > 0 and self.retract_before_wipe < 1:
+                gcodes.extend(self.wipe(loop, simulator, feature))
+
+        # Travel:
+        zhop = self.travel_zhop
+        hopping_z = ""
+        z = None
+        if z is not None:
+            hopping_z = f" Z{(z + zhop):.2f}"
+        move = from_gcode(f"G1 X{target_state.x} Y{target_state.y}{hopping_z} F{int(simulator.travel_speed)} ; BRICK: Target Position\n")
+        gcodes.append(move)
+        self.last_travelled_gcode_line = move # last move tracking
+        self.last_internalperimeter_xy_line = move
+        if z is not None:
+            gcodes.append(from_gcode(f"G1 Z{z:.2f} ; BRICK: Target Position\n"))
+        
+        # Unretraction:
+        if self.retracted > 0 and simulator.retraction_speed > 0:
+            gcodes.append(from_gcode(f"G1 E{self.retracted:.2f} F{int(simulator.retraction_speed)} ; BRICK: Unretract\n"))
+            self.retracted = 0 # Cancel the Debt
+
+        return gcodes
+
+
+    def wipe(self, loop, simulator, feature):
         """
-        Process a loop to calculate a wiping path (repeating part of the already-printed loop while retracting).
+        Process a loop to generate a wiping path (repeating part of the already-printed loop while retracting).
 
         Populates:
             moving_points: list of points to move to.
             moving_distances: list of distances between those points.
             moving_extrusions: list of extrusion values (retractions) to match.
         """
+        from_gcode = GCodeLine.from_gcode
+
+        wipe_distance = self.wipe_distance
+
+        # Total retraction for Wiping:
+        total_extrusion_to_retract = simulator.retraction_length * (1 - self.retract_before_wipe)
+        #print(f"---self.retract_before_wipe:{self.retract_before_wipe} total_extrusion_to_retract:{total_extrusion_to_retract} wipe_distance:{wipe_distance}\n")
+
+        # Calculate how much extrusion to retract per mm traveled
+        extrusion_per_mm = total_extrusion_to_retract / wipe_distance
+
+        # Current position is the end of the last segment (current nozzle position)
+        start_pos = loop[-1].current
+
+        gcodes = []
+
+        if Point.distance_between_points(start_pos, loop[0].previous) < 1:
+            # Forward wipe: follow the loop in its normal order
+            wipe_mode = 'forward'
+            path = loop
+        else:
+            # Backward wipe: reverse the loop and walk backwards
+            wipe_mode = 'backward'
+            path = reversed(loop)
+
+        # Output lists
+        traveled = 0.0
+        moving_points = []
+        moving_distances = []
+        moving_extrusions = []
+
+        for line in path:
+            if line.current.is_extruding:
+                if wipe_mode == 'forward':
+                    from_pos = line.previous
+                    to_pos = line.current
+                else:  # backward mode
+                    from_pos = line.current
+                    to_pos = line.previous
+
+                segment_length = Point.distance_between_points(from_pos, to_pos)
+
+                if segment_length <= 1e-6:
+                    continue
+
+                if traveled + segment_length >= wipe_distance:
+                    needed_distance = wipe_distance - traveled
+                    target_point = (
+                        Point.point_along_line_forward(from_pos, to_pos, needed_distance)
+                        if wipe_mode == 'forward'
+                        else Point.point_along_line_backward(from_pos, to_pos, needed_distance)
+                    )
+
+                    moving_points.append(target_point)
+                    moving_distances.append(needed_distance)
+                    moving_extrusions.append(needed_distance * extrusion_per_mm)
+                    break
+                else:
+                    moving_points.append(to_pos)
+                    moving_distances.append(segment_length)
+                    moving_extrusions.append(segment_length * extrusion_per_mm)
+
+                    traveled += segment_length
+                    cur_pos = to_pos
+
+        # Debug output (optional, but useful during development)
+        # logger.debug(f"Wipe: {len(moving_points)} points, {traveled:.3f}mm covered, {sum(moving_extrusions):.3f}mm retracted, distances: {moving_distances}, extrusions: {moving_extrusions}")
+
+        # print(moving_points)
+        # print(moving_extrusions)
+
+        gcodes.append(from_gcode(feature.const_wipe_start)) # ";WIPE_START\n"
+        gcodes.append(from_gcode(f"G1 F{int(simulator.wipe_speed)}\n"))
+        move = None
+        for point, extrusion in zip(moving_points, moving_extrusions):
+            move = from_gcode(f"G1 X{point.x:.3f} Y{point.y:.3f} E-{extrusion:.5f} ; BRICK: Wipe \n")
+            gcodes.append(move)
+        if move is not None:
+            self.last_travelled_gcode_line = move # last move tracking
+            self.last_internalperimeter_xy_line = move
+        gcodes.append(from_gcode(feature.const_wipe_end)) # ";WIPE_END\n"
+
+        self.retracted = self.retracted - total_extrusion_to_retract # Retraction Debt
+
+        # TODO: Incorporate the experimental_arcflick 
+
+        return gcodes
+
+
+    # TODO: salvage `experimental_arcflick` into the new wipe feature and remove this:
+    def wipe_movement(self, loop, target_state, simulator, feature, z = None):
         from_gcode = GCodeLine.from_gcode
 
         travel_threshold = self.travel_threshold
@@ -1078,7 +1221,10 @@ class BrickLayersProcessor:
 
 
             # Debug output (optional, but useful during development)
-            # logger.debug(f"Wipe: {len(moving_points)} points, {traveled:.3f}mm covered, {sum(moving_extrusions):.3f}mm retracted, distances: {moving_distances}, extrusions: {moving_extrusions}")
+            logger.debug(f"Wipe: {len(moving_points)} points, {traveled:.3f}mm covered, {sum(moving_extrusions):.3f}mm retracted, distances: {moving_distances}, extrusions: {moving_extrusions}")
+
+        print(moving_points)
+        print(moving_extrusions)
 
         zhop = self.travel_zhop
         hopping_z = ""
@@ -1352,6 +1498,8 @@ class BrickLayersProcessor:
                         ##########
                         # In the beginning of the layer
                         if is_first_perimeter and is_first_loop and is_first_line:
+                            xy_line_to_adjust = self.last_noninternalperimeter_xy_line
+                            xy_line_to_adjust.gcode = f"G1 X{deffered_line.previous.x} Y{deffered_line.previous.y} Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Travel Fix Up\n"
                             if feature.current_object is not None:
                                 buffer.append(from_gcode(f"{feature.const_printingobject_stop}{feature.current_object.name}\n"))
                             if not deffered_line.current.relative_extrusion:
@@ -1361,19 +1509,12 @@ class BrickLayersProcessor:
                             buffer.append(from_gcode(f"{feature.const_layer_z}{target_z_formated}\n")) # ex: ;Z:2.4
                             buffer.append(from_gcode(f";{target_z_formated}\n")) # TODO: Will it Break Bambu Studio Preview? They don't use it...
                             buffer.append(from_gcode(f"{feature.const_layer_height}{feature.height:.2f}\n")) # ex: ;HEIGHT:0.2
-                            buffer.append(from_gcode(f"G1 Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Z-Hop UP\n"))
-                            # # Creates a Movement to reposition the head in the correct initial position:
-                            # buffer.extend(self.retraction_to_state(deffered_line.previous, simulator)) # Retraction Move to State
+                            #buffer.append(from_gcode(f"G1 Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Z-Hop UP\n"))
+                            buffer.extend(self.travel_to(deffered_line.previous, simulator, feature, None, deffered_line.previous, higher_z))
                             buffer.append(from_gcode(f"G1 Z{target_z_formated} F{int(simulator.travel_speed)} ; BRICK: Z-Zop Down\n"))
-                            position_already_set_in_loop = True
 
                             buffer.append(from_gcode(feature.internal_perimeter_type))
-                            #new_width = deffered_line.current.width * extrusion_multiplier_preview
-                            #new_width_formated = f"{new_width:.2f}"
-                            #buffer.append(from_gcode(f";WIDTH:{new_width_formated}\n"))
                             buffer.append(from_gcode(f"{simulator.const_width}{deffered_line.current.width:.2f}\n")) # avoid thin lines from the previous layer
-                            buffer.append(from_gcode(f"G1 F{int(deffered_line.previous.f)} ; BRICK: Feedrate\n"))
-                            # TODO: it could be affected previously... maybe getting the default width for internal perimeters?
                         ##########
 
                         #logger.info(f"loop_order: {loop_order} previous_loop_order: {previous_loop_order} object: {current_object}\n")
@@ -1384,27 +1525,25 @@ class BrickLayersProcessor:
                             if current_object is not None:
                                 buffer.append(from_gcode(f"{feature.const_printingobject_stop}{current_object.name}\n"))
                             if previous_loop is not None:
-                                buffer.extend(self.wipe_movement(previous_loop, deffered_line.previous, simulator, feature, target_z))
+                                buffer.extend(self.travel_to(deffered_line.previous, simulator, feature, previous_loop, None, target_z))
                             else:
-                                buffer.append(from_gcode(f"G1 X{deffered_line.previous.x} Y{deffered_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel\n")) # Simple Move
+                                buffer.extend(self.travel_to(deffered_line.previous, simulator, feature, None, deffered_line.previous, target_z))
                             buffer.append(from_gcode(f"{feature.const_printingobject_start}{deffered_line.object.name}\n"))
                             buffer.append(from_gcode(f"G1 F{int(deffered_line.previous.f)} ; BRICK: FeedRate\n"))
                             new_object = True
                             current_object = deffered_line.object
                         elif new_loop and is_first_line:
                             if previous_loop is not None:
-                                buffer.extend(self.wipe_movement(previous_loop, deffered_line.previous, simulator, feature, target_z))
+                                buffer.extend(self.travel_to(deffered_line.previous, simulator, feature, previous_loop, None, target_z))
                             else:
-                                buffer.append(from_gcode(f"G1 X{deffered_line.previous.x} Y{deffered_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel\n")) # Simple Move   
+                                buffer.extend(self.travel_to(deffered_line.previous, simulator, feature, None, deffered_line.previous, target_z))  
                             buffer.append(from_gcode(f"G1 F{int(deffered_line.previous.f)} ; BRICK: FeedRate\n"))
-
 
 
 
                         # Actually adding the internal perimeter line, with a recalculated extrusion:
                         calculated_line = BrickLayersProcessor.new_line_from_multiplier(deffered_line, extrusion_multiplier)
                         buffer.append(calculated_line) # Actual Insertion of the Loop Line
-
 
 
 
@@ -1429,17 +1568,14 @@ class BrickLayersProcessor:
 
                     previous_concentric_group = concentric_group  # allows to identify when should RETRACT to another non-concentric region of the perimeter 
                     previous_loop = deffered_loop
-
-                    #deffered_loop.clear() # Clearing the structure (should NOT clear... I might delete this line in the future)
-
-                #deffered_perimeter.clear() # Clearing the structure (should NOT clear... I might delete this line in the future)
         
             deffered.clear() # Clearing the structure
             
-
             # Insert a safe point to continue this line:
             # TODO: Should retract before? Create a custom retraction if the next line starts further away from the end of the last deffered perimeter
-            buffer.append(from_gcode(f"G1 X{myline.previous.x} Y{myline.previous.y} F{int(simulator.travel_speed)} ; BRICK: Calculated to next coordinate\n"))
+            move = from_gcode(f"G1 X{myline.previous.x} Y{myline.previous.y} F{int(simulator.travel_speed)} ; BRICK: Calculated to next coordinate\n")
+            buffer.append(move)
+            self.last_internalperimeter_xy_line = move
             buffer.append(from_gcode(f"G1 F{int(deffered_line.previous.f)} ; BRICK: Feed Rate\n")) # Simple Feed
 
             # TODO: Eliminate double-travels, passing the "buffer_lines" through optimization... EDIT: maybe it is not really necessary...
@@ -1703,6 +1839,8 @@ class BrickLayersProcessor:
                                 concentric_group = kept_line.concentric_group
 
                                 if is_first_loop and is_first_line:
+                                    xy_line_to_adjust = self.last_noninternalperimeter_xy_line
+                                    xy_line_to_adjust.gcode = f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel Fix\n"
                                     buffer_lines.append(from_gcode(feature.internal_perimeter_type))
                                     buffer_lines.append(from_gcode(f"{feature.const_layer_height}{feature.height}\n"))
 
@@ -1714,10 +1852,12 @@ class BrickLayersProcessor:
                                 if is_first_line:
                                     # Creates a Movement to reposition the head in the correct initial position:
                                     if previous_loop is not None:
-                                        buffer_lines.extend(self.wipe_movement(previous_loop, kept_line.previous, simulator, feature, feature.z))
+                                        buffer_lines.extend(self.travel_to(kept_line.previous, simulator, feature, previous_loop, None, feature.z))
+                                        pass
                                     else:
-                                        buffer_lines.append(from_gcode(f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel\n")) # Simple Move
-                                        buffer_lines.append(from_gcode(f"G1 F{int(kept_line.previous.f)} ; BRICK: Feed Rate\n")) # Simple Feed
+                                        #buffer_lines.append(from_gcode(f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel\n")) # Simple Move
+                                        #buffer_lines.append(from_gcode(f"G1 F{int(kept_line.previous.f)} ; BRICK: Feed Rate\n")) # Simple Feed
+                                        buffer_lines.extend(self.travel_to(kept_line.previous, simulator, feature, None, kept_line.previous, feature.z))
                                     # Enforce the Original Feed Rate of the Loop:
                                     buffer_lines.append(from_gcode(f"G1 F{int(kept_line.previous.f)} ; BRICK: Feed Rate\n"))
 
@@ -1738,6 +1878,7 @@ class BrickLayersProcessor:
                             buffer_lines.append(from_gcode("M82 ; BRICK: Return to Absolute Extrusion\n"))
                             # Resets the correct absolute extrusion register for the next feature:
                             buffer_lines.append(from_gcode(f"G92 E{myline.previous.e} ; BRICK: Resets the Extruder absolute position\n"))
+                        self.last_internalperimeter_state = calculated_line.current
                         if  myline.previous.width != kept_line.current.width:
                             buffer_lines.append(from_gcode(f"{simulator.const_width}{myline.previous.width}\n"))
 
@@ -1809,6 +1950,11 @@ class BrickLayersProcessor:
                 # Adds all the normal lines to the buffer:
                 if myline is not None:
                     buffer_lines.append(myline)
+
+                self.last_noninternalperimeter_state = current_state
+                if simulator.moved_in_xy:
+                    self.last_noninternalperimeter_xy_line = myline
+
 
             # Exception for pretty visualization on PrusaSlicer and OrcaSlicer preview:
             # Forces a "Width" after an External Perimeter begins, to make them look like they actually ARE.
