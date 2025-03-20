@@ -5,11 +5,13 @@ Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and Bamb
 [![Brick Layers for everybody](https://img.youtube.com/vi/qqJOa46OTTs/maxresdefault.jpg)](https://www.youtube.com/watch?v=qqJOa46OTTs)
 
 ---
-# ⚠️ IMPORTANT NOTICE ⚠️
+# We are back: v0.2.1
 
-We've been making constant changes to this script in the past few days. Many bugs were fixed, a couple of things broke — specifically travel, retraction, and wiping.
+I made major changes on travel, retraction, and wiping. It is printing much better. 
 
-Right now, actual **printing** is **not** producing good results. As soon as it gets acceptable again, I'll say it here. Thanks!
+But just like a 0.6mm nozzle, it seems Brick Layers is prone to stringing - time to start playing with settings and share our findings!
+
+!['CaliCat' printed with Brick Layers on the Elegoo Centauri Carbon](docs/img/v0.2.1.jpg)
 
 ---
 
