@@ -55,6 +55,9 @@ In "Quality", "Walls printing order" be sure you select **"Inner/Outer"** - this
 In **Prusa Slicer** you can choose **Classic** or **Arachne**, both work equaly fine. 
 But on **Orca Slicer** and **Bambu Studio** forks, Arachne sometimes creates orphaned loops that will turn into minor glitches in Brick Layers (I cannot fix, so far) - so I recommend **'Classic'**.
 
+### **Disable Arc fitting** (for now)
+The plan, from the beginning, is to support ARC. But it's not completely done yet - it needs an algorithm to calculate Bounding Boxes of the exact area an arc of any arbitrary angle occupies, ideally without making the script much slower.
+
 ### **Binary G-code** on Prusa Slicer:
 You must **disable** `"Supports binary G-code"` in **Printers → General → Firmware** (Expert Mode)
 
