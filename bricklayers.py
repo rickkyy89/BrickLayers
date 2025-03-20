@@ -265,11 +265,15 @@ class GCodeStateBBox:
 
 
 from typing import Optional
+import re
 class GCodeLine:
     """Encapusates one GCode line, plus print states and a reference to which Printing Object the line belongs
     It can contain a calculated `looporder` and concentric loops have the same 'contentric_grop' number
     """
     __slots__ = ('gcode', 'previous', 'current', 'object', 'looporder', 'concentric_group')
+
+    regex_x = re.compile(r'X[-+]?[0-9]*\.?[0-9]+')
+    regex_y = re.compile(r'Y[-+]?[0-9]*\.?[0-9]+')
 
     def __init__(self, gcode: str, previous: Optional[GCodeState] = None,
                  current: Optional[GCodeState] = None, object_ref: Optional[ObjectEntry] = None, looporder: Optional[int] = None, concentric_group: Optional[int] = None):
@@ -287,10 +291,17 @@ class GCodeLine:
     def to_gcode(self) -> str:
         return self.gcode
 
+    def update_xy(self, new_x, new_y):
+        gcode = self.gcode
+        gcode = GCodeLine.regex_x.sub(f'X{new_x}', gcode)
+        gcode = GCodeLine.regex_y.sub(f'Y{new_y}', gcode)
+        self.gcode = gcode
+
     @staticmethod
     def from_gcode(gcode: str, previous: Optional[GCodeState] = None, current: Optional[GCodeState] = None, object_ref: Optional[ObjectEntry] = None) -> "GCodeLine":
         """Creates a GCodeLine instance from a raw G-code line without modifications. That should inclute a \\n at the very end"""
         return GCodeLine(gcode, previous, current, object_ref)
+
 
 
 
@@ -1003,9 +1014,16 @@ class BrickLayersProcessor:
         elif start_state is not None:
             start_pos = start_state
 
+        move_z = ""
+        zhop = self.travel_zhop
+        hopping_z = ""
+        if z is not None:
+            move_z = f" Z{z:.2f}"
+            hopping_z = f" Z{(z + zhop):.2f}"
+
         if Point.distance_between_points(start_pos, target_state) < travel_threshold :
             # Simple Travel - no wipe nor retraction (very close travel)
-            move = from_gcode(f"G1 X{target_state.x} Y{target_state.y} F{int(simulator.travel_speed)} ; BRICK: Travel (no-retraction)\n") # Simple Move
+            move = from_gcode(f"G1 X{target_state.x} Y{target_state.y}{move_z} F{int(simulator.travel_speed)} ; BRICK: Travel (no-retraction)\n") # Simple Move
             gcodes.append(move)
             self.last_travelled_gcode_line = move # last move tracking
             self.last_internalperimeter_xy_line = move
@@ -1020,18 +1038,13 @@ class BrickLayersProcessor:
             else:
                 retraction = simulator.retraction_length * self.retract_before_wipe
             gcodes.append(from_gcode(f"G1 E-{retraction:.2f} F{int(simulator.retraction_speed)} ; BRICK: Retraction \n"))
-            self.retracted = self.retracted - retraction # Retraction Debt
+            self.retracted = self.retracted + retraction # Retraction Debt
 
             # Wipe:
             if loop is not None and simulator.wipe_speed > 0 and self.retract_before_wipe < 1:
                 gcodes.extend(self.wipe(loop, simulator, feature))
 
         # Travel:
-        zhop = self.travel_zhop
-        hopping_z = ""
-        z = None
-        if z is not None:
-            hopping_z = f" Z{(z + zhop):.2f}"
         move = from_gcode(f"G1 X{target_state.x} Y{target_state.y}{hopping_z} F{int(simulator.travel_speed)} ; BRICK: Target Position\n")
         gcodes.append(move)
         self.last_travelled_gcode_line = move # last move tracking
@@ -1138,7 +1151,7 @@ class BrickLayersProcessor:
             self.last_internalperimeter_xy_line = move
         gcodes.append(from_gcode(feature.const_wipe_end)) # ";WIPE_END\n"
 
-        self.retracted = self.retracted - total_extrusion_to_retract # Retraction Debt
+        self.retracted = self.retracted + total_extrusion_to_retract # Retraction Debt
 
         # TODO: Incorporate the experimental_arcflick 
 
@@ -1501,6 +1514,7 @@ class BrickLayersProcessor:
                         if is_first_perimeter and is_first_loop and is_first_line:
                             xy_line_to_adjust = self.last_noninternalperimeter_xy_line
                             if xy_line_to_adjust is not None and not xy_line_to_adjust.current.is_extruding:
+                                #xy_line_to_adjust.update_xy(deffered_line.previous.x, deffered_line.previous.y)
                                 xy_line_to_adjust.gcode = f"G1 X{deffered_line.previous.x} Y{deffered_line.previous.y} Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Travel Fix Up\n"
                                 self.last_noninternalperimeter_xy_line = None
                             else:
@@ -1681,10 +1695,6 @@ class BrickLayersProcessor:
             #logger.info(f"IP: {feature.internal_perimeter}, JL: {feature.justleft_internal_perimeter} - Line: {line_number}, gcode:{line}")
 
 
-            if feature.just_changed_type and feature.last_type in ["Internal Bridge", "Ironing", "Bridge"]:
-                buffer_lines.append(from_gcode(f"{feature.const_layer_height}{feature.height}\n")) 
-                # Fixes a nasty non-related preview glitch on OrcaSlicer and BambuStudio Preview
-                # Doesn't change anything on actual printing. Just making the preview pretty.
 
             # Detecting Speeds from the file:
             if detect_speeds == True: # it must begin as True - there is no default speeds (override down). It changes to False once speeds are detected
@@ -1847,8 +1857,9 @@ class BrickLayersProcessor:
                                 if is_first_loop and is_first_line:
                                     xy_line_to_adjust = self.last_noninternalperimeter_xy_line
                                     if xy_line_to_adjust is not None and not xy_line_to_adjust.current.is_extruding:
-                                        xy_line_to_adjust.gcode = f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel Fix\n"
-                                        #xy_line_to_adjust.gcode = f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} Z{feature.z + 0.4} F{int(simulator.travel_speed)} ; BRICK: Travel Fix\n"
+                                        # This was breaking in some cases
+                                        #xy_line_to_adjust.gcode = f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel Fix Level\n"
+                                        xy_line_to_adjust.update_xy(kept_line.previous.x, kept_line.previous.y) # BRICK Travel Fix
                                         self.last_noninternalperimeter_xy_line = None
                                         #buffer_lines.append(from_gcode(f"G1 Z{feature.z} F{int(simulator.travel_speed)} ; BRICK: Z-Hop Down\n"))
                                     buffer_lines.append(from_gcode(feature.internal_perimeter_type))
@@ -1890,8 +1901,9 @@ class BrickLayersProcessor:
                             # Resets the correct absolute extrusion register for the next feature:
                             buffer_lines.append(from_gcode(f"G92 E{myline.previous.e} ; BRICK: Resets the Extruder absolute position\n"))
                         self.last_internalperimeter_state = calculated_line.current
-                        if  myline.previous.width != kept_line.current.width:
-                            buffer_lines.append(from_gcode(f"{simulator.const_width}{myline.previous.width}\n"))
+                        #if  myline.previous.width != kept_line.current.width:
+                        buffer_lines.append(from_gcode(f"{simulator.const_width}{myline.previous.width}\n"))   # For the Preview
+                        buffer_lines.append(from_gcode(f"{feature.const_layer_height}{feature.height:.2f}\n")) # For the Preview
 
 
 
@@ -1967,6 +1979,12 @@ class BrickLayersProcessor:
                     myline.current = current_state
                     self.last_noninternalperimeter_xy_line = myline
 
+            # Fixes a nasty non-related preview glitch on OrcaSlicer and BambuStudio Preview
+            # Doesn't change anything on actual printing. Just making the preview pretty.
+            if feature.current_type in ["Internal Bridge", "Ironing", "Bridge", "Sparse infill"] and line.startswith(feature.DEF_LAYER_HEIGHTS):
+                myline.gcode = f"{feature.const_layer_height}{feature.height}\n"
+            if feature.just_changed_type and feature.current_type in ["Internal Bridge", "Ironing", "Bridge", "Sparse infill"]:
+                buffer_lines.append(from_gcode(f"{feature.const_layer_height}{feature.height}\n"))
 
             # Exception for pretty visualization on PrusaSlicer and OrcaSlicer preview:
             # Forces a "Width" after an External Perimeter begins, to make them look like they actually ARE.
