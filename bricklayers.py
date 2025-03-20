@@ -656,7 +656,7 @@ class GCodeSimulator:
                 z_move = (new_z != old_z)
                 had_a_movement_change = x_move or y_move or z_move # In this very line
 
-                self.moved_in_xy = x_move or y_move
+                self.moved_in_xy = (x_move or y_move)
 
                 just_feed_rate = ( has_f and not (has_x or has_y or has_z) )
 
@@ -943,8 +943,8 @@ class BrickLayersProcessor:
         self.yield_objects = False
         self.justcalculate = False # If True, just perform calculations but doesn't generate the brick-layering
         self.experimental_arcflick = False # If True, turns On "ARC Flick" after wiping, an experiment to free the nozzle from stringing
-        self.travel_threshold = 3 #mm If the distance to move between points is smaller than this, don't wipe, just move.
-        self.wipe_distance = 2.5  #mm Total distance we want to wipe
+        self.travel_threshold = 1.5 #mm If the distance to move between points is smaller than this, don't retract or wipe, just move.
+        self.wipe_distance = 2.0  #mm Total distance we want to wipe
         self.retract_before_wipe = 0.8 # Float between 0 and 1 - if 0 all the retraction will be done in a wipe. If 1, all the retaction is without a wipe.
         self.travel_zhop = 0.4 #mm Vertical distance to move up when traveling to distante points
         self.retracted = 0.0 #mm Like a 'Debt' value: how much it has been retracted so far, for detraction to restitute later
@@ -1473,6 +1473,7 @@ class BrickLayersProcessor:
             previous_perimeter = 0
             concentric_group = 0
             previous_concentric_group = 0
+            should_create_moveup = False
 
             deffered[:] = [item for item in deffered if item] # Strip Empty (!!! why)
 
@@ -1499,7 +1500,11 @@ class BrickLayersProcessor:
                         # In the beginning of the layer
                         if is_first_perimeter and is_first_loop and is_first_line:
                             xy_line_to_adjust = self.last_noninternalperimeter_xy_line
-                            xy_line_to_adjust.gcode = f"G1 X{deffered_line.previous.x} Y{deffered_line.previous.y} Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Travel Fix Up\n"
+                            if xy_line_to_adjust is not None and not xy_line_to_adjust.current.is_extruding:
+                                xy_line_to_adjust.gcode = f"G1 X{deffered_line.previous.x} Y{deffered_line.previous.y} Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Travel Fix Up\n"
+                                self.last_noninternalperimeter_xy_line = None
+                            else:
+                                should_create_moveup = True
                             if feature.current_object is not None:
                                 buffer.append(from_gcode(f"{feature.const_printingobject_stop}{feature.current_object.name}\n"))
                             if not deffered_line.current.relative_extrusion:
@@ -1509,9 +1514,10 @@ class BrickLayersProcessor:
                             buffer.append(from_gcode(f"{feature.const_layer_z}{target_z_formated}\n")) # ex: ;Z:2.4
                             buffer.append(from_gcode(f";{target_z_formated}\n")) # TODO: Will it Break Bambu Studio Preview? They don't use it...
                             buffer.append(from_gcode(f"{feature.const_layer_height}{feature.height:.2f}\n")) # ex: ;HEIGHT:0.2
-                            #buffer.append(from_gcode(f"G1 Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Z-Hop UP\n"))
-                            buffer.extend(self.travel_to(deffered_line.previous, simulator, feature, None, deffered_line.previous, higher_z))
-                            buffer.append(from_gcode(f"G1 Z{target_z_formated} F{int(simulator.travel_speed)} ; BRICK: Z-Zop Down\n"))
+                            if should_create_moveup:
+                                #buffer.append(from_gcode(f"G1 Z{higher_z_formated} F{int(simulator.travel_speed)} ; BRICK: Z-Hop UP\n"))
+                                buffer.extend(self.travel_to(deffered_line.previous, simulator, feature, None, deffered_line.previous, higher_z))
+                            buffer.append(from_gcode(f"G1 Z{target_z_formated} F{int(simulator.travel_speed)} ; BRICK: Z-Hop Down\n"))
 
                             buffer.append(from_gcode(feature.internal_perimeter_type))
                             buffer.append(from_gcode(f"{simulator.const_width}{deffered_line.current.width:.2f}\n")) # avoid thin lines from the previous layer
@@ -1840,7 +1846,11 @@ class BrickLayersProcessor:
 
                                 if is_first_loop and is_first_line:
                                     xy_line_to_adjust = self.last_noninternalperimeter_xy_line
-                                    xy_line_to_adjust.gcode = f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel Fix\n"
+                                    if xy_line_to_adjust is not None and not xy_line_to_adjust.current.is_extruding:
+                                        xy_line_to_adjust.gcode = f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel Fix\n"
+                                        #xy_line_to_adjust.gcode = f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} Z{feature.z + 0.4} F{int(simulator.travel_speed)} ; BRICK: Travel Fix\n"
+                                        self.last_noninternalperimeter_xy_line = None
+                                        #buffer_lines.append(from_gcode(f"G1 Z{feature.z} F{int(simulator.travel_speed)} ; BRICK: Z-Hop Down\n"))
                                     buffer_lines.append(from_gcode(feature.internal_perimeter_type))
                                     buffer_lines.append(from_gcode(f"{feature.const_layer_height}{feature.height}\n"))
 
@@ -1853,6 +1863,7 @@ class BrickLayersProcessor:
                                     # Creates a Movement to reposition the head in the correct initial position:
                                     if previous_loop is not None:
                                         buffer_lines.extend(self.travel_to(kept_line.previous, simulator, feature, previous_loop, None, feature.z))
+                                        #buffer_lines.extend(self.travel_to(kept_line.previous, simulator, feature, None, kept_line.previous, feature.z))
                                         pass
                                     else:
                                         #buffer_lines.append(from_gcode(f"G1 X{kept_line.previous.x} Y{kept_line.previous.y} F{int(simulator.travel_speed)} ; BRICK: Travel\n")) # Simple Move
@@ -1953,6 +1964,7 @@ class BrickLayersProcessor:
 
                 self.last_noninternalperimeter_state = current_state
                 if simulator.moved_in_xy:
+                    myline.current = current_state
                     self.last_noninternalperimeter_xy_line = myline
 
 
