@@ -963,7 +963,9 @@ class BrickLayersProcessor:
         self.last_internalperimeter_state = None # Experiment...
         self.last_internalperimeter_xy_line = None # Experiment...
         self.last_noninternalperimeter_state = None # Experiment...
-        self.last_noninternalperimeter_xy_line = None # Experiment...
+        self.last_noninternalperimeter_xy_line = None # Used to re-conciliate the moved lines to their new surroundings
+        self.header_info = {} # Any text to be included at the beginning of the exported file
+        self.enable_header = False # If turned false, won't output the Bricklayers header information to the file
 
     def set_progress_callback(self, callback: Callable[[dict], None]):
         """Sets the progress callback function."""
@@ -1001,7 +1003,37 @@ class BrickLayersProcessor:
         myline.gcode = command + "\n"
         return myline # keeps the states, just change the actual gcode string
 
+    def set_header_info(self, dict):
+        self.header_info = dict
 
+    def gen_header_lines(self, gcodeline_wrap = True) -> list:
+        """
+        Args:
+            gcodeline_wrap (bool): 
+                - True returns a list of GCodeLine objects.
+                - False returns a list of plain string lines.
+        """
+        t = []
+        pf  = ";=="
+        bar = "=============================="
+
+        t.append(bar)
+        t.append(" BrickLayers Post-Processed")
+        # Loop through key/values to build header
+        for key, value in self.header_info.items():
+            t.append(f" {key}: {value}")     
+        t.append(bar)
+        t.append("")
+
+        # Prefix each line with pf and add line breaks
+        output = []
+        for line in t:
+            txt = f"{pf}{line}\n" if line else f"\n"
+            if gcodeline_wrap:
+                output.append(GCodeLine.from_gcode(txt))
+            else:
+                output.append(txt)
+        return output
 
     def travel_to(self, target_state, simulator, feature, loop = None, start_state = None, z = None):
         from_gcode = GCodeLine.from_gcode # faster lookup
@@ -1656,6 +1688,10 @@ class BrickLayersProcessor:
         knife_activated = False
         layer_changed_during_internal_perimeter = False
 
+        # includes the BrickLayer Header Information to the GCode
+        if self.enable_header:
+            buffer_lines.extend(self.gen_header_lines())
+
         # Process the G-code
         #READING ONE LINE AT A TIME FROM A GENERATOR (the input)
         for line_number, line in enumerate(gcode_stream, start=1):
@@ -2201,6 +2237,10 @@ Argument names are case-insensitive, so:
                                "1: Just Filenames\n"
                                "2: Progress (default)\n"
                                "3: Progress all lines, a bit slower\n\n")
+    parser.add_argument("-noHeader", action="store_true",
+                        help="\nSkip adding BrickLayers header to your G-code\n"
+                               "Recommended only for automation\n"
+                               "(header is helpful for debugging)\n\n")
 
     args = parser.parse_args()
 
@@ -2298,6 +2338,50 @@ Argument names are case-insensitive, so:
         if verbosity == 1:
             print(input_file)
 
+
+        # Setting up the BrickProcessor:
+        processor = BrickLayersProcessor(
+            extrusion_global_multiplier=args_dict["extrusionmultiplier"],
+            start_at_layer=args_dict["startatlayer"],
+            layers_to_ignore=final_ignored_layers,
+            verbosity=verbosity
+        )
+        processor.experimental_arcflick = False
+        processor.set_progress_callback(update_progress)  # Full-fledged terminal progress indicator
+        #processor.set_progress_callback(update_progress_print) # Super simple progress-indicator example
+
+
+        # Detect interpreter
+        python_imp = platform.python_implementation()
+        python_ver = platform.python_version()
+        os_info    = f"{platform.system()} {platform.release()}"
+        IS_CPYTHON = python_imp == "CPython"
+        IS_PYPY    = python_imp == "PyPy"
+
+        # !! HEADER PRIVACY CONCERNS !!
+        #
+        # Certain information is very useful for debugging
+        # but could accidentally expose sensitive user data:
+        #
+        # - Interpreter Path: Can reveal usernames or computer-specific info
+        # - Script Arguments: Might contain file paths or other sensitive details
+        # - Input/Output Filenames: May identify personal projects or users
+        #
+        # DO NOT add sensitive information to the header.
+        # Keep the following list minimal, generic, and privacy-safe:
+        header_info = {
+            "Script Version"       : __version__,
+            "Python Interpreter"   : python_imp,
+            "Python Version"       : python_ver,
+            "OS"                   : os_info,
+            "Input Source"         : "Slicer" if is_uploading else "Command Line",
+            "Starting at Layer"    : args_dict["startatlayer"],
+            "Ignored Layers"       : final_ignored_layers,
+            "Extrusion Multiplier" : args_dict["extrusionmultiplier"]
+        }
+        processor.set_header_info(header_info)
+        processor.enable_header = not args_dict["noheader"]
+
         if verbosity > 1:
             import io
             if os.name == "nt":
@@ -2318,27 +2402,15 @@ Argument names are case-insensitive, so:
             print(" Layers to Ignore:     ", final_ignored_layers)
             print(" Enabled:              ", args_dict["enabled"])
             print(" Verbosity:            ", args_dict["verbosity"])
+            print(" Include Header:       ", "No" if args_dict["noheader"] else "Yes")
+            print(" Python Interpreter:   ", python_imp)
+            print(" Python Version:       ", python_ver)
+            print(" OS:                   ", os_info)
             print("\n")
 
         logger.debug(input_file)
         logger.debug(final_output_file)
         input_file_size = os.path.getsize(input_file)
-
-        # Setting up the BrickProcessor:
-        processor = BrickLayersProcessor(
-            extrusion_global_multiplier=args_dict["extrusionmultiplier"],
-            start_at_layer=args_dict["startatlayer"],
-            layers_to_ignore=final_ignored_layers,
-            verbosity=verbosity
-        )
-        processor.experimental_arcflick = False
-        processor.set_progress_callback(update_progress)  # Full-fledged terminal progress indicator
-        #processor.set_progress_callback(update_progress_print) # Super simple progress-indicator example
-
-
-        # Detect interpreter
-        IS_CPYTHON = platform.python_implementation() == "CPython"
-        IS_PYPY = platform.python_implementation() == "PyPy"
 
         if verbosity > 0:
             # Setup optional memory tracking
