@@ -74,6 +74,8 @@ __version__ = "v0.2.1-8-gc6a5f41"  # Updated by GitHub Actions
 #  - https://github.com/GeekDetour/BrickLayers
 
 
+import traceback # On the very top
+
 # LOGGING:
 import logging
 logger = logging.getLogger(__name__)
@@ -2049,10 +2051,34 @@ class BrickLayersProcessor:
         #logger.debug("Finished.")
 
 
+# I might ditch this to using Python's Logger for errors on a separate file...
+def error_log(message, details):
+    import os
+    import platform
+    from datetime import datetime, timezone
 
-# Main execution
-if __name__ == "__main__":
+    error_log   = "bricklayers_error_log.txt"
+    script_dir  = os.path.dirname(os.path.abspath(__file__))
+    error_log_path = os.path.join(script_dir, error_log)
+    python_imp = platform.python_implementation()
+    python_ver = platform.python_version()
+    os_info    = f"{platform.system()} {platform.release()}"
+    timestamp  = datetime.now().astimezone().isoformat()
 
+    with open(error_log_path, "a", encoding="utf-8") as f:
+        f.write("\n" * 2)
+        f.write("=" * 50 + "\n")
+        f.write(f"🕒 {timestamp}\n")
+        f.write(f"💥 {message}\n")
+        f.write(f"   BrickLayers.py {__version__}\n")
+        f.write(f"   Python Interpreter: {python_imp}\n")
+        f.write(f"   Python Version: {python_ver}\n")
+        f.write(f"   OS: {os_info}\n\n")
+        f.write(details)
+
+
+
+def main():
     import argparse
     import tempfile
     import platform
@@ -2060,15 +2086,6 @@ if __name__ == "__main__":
     import os
     import sys
     import time
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    log_file_path = os.path.join(script_dir, "bricklayers_log.txt")
-    logging.basicConfig(
-        filename=log_file_path,
-        filemode="a", # change to "w" if you only want to see the latest run.
-        level=logging.DEBUG,
-        format="%(asctime)s - %(message)s"
-    )
 
 
     def human_readable_size(size_bytes):
@@ -2106,7 +2123,7 @@ if __name__ == "__main__":
 
     def update_progress(progress_data: dict):
         """Displays progress, numeric stats, and the last line read without scrolling."""
-        global first_update, input_file_size, previous_progress, final_output_file
+        nonlocal first_update, input_file_size, previous_progress, final_output_file
 
         # Unpack all values from dictionary
         bytesprocessed, text, linecount, layercount, verbosity = (
@@ -2155,6 +2172,14 @@ if __name__ == "__main__":
         print(int(progress_data["bytesprocessed"] / input_file_size * 100))
 
 
+    class ErrorLoggingArgumentParser(argparse.ArgumentParser):
+        def error(self, message):
+            sys.stderr.write(f"\n💥 BrickLayers error: {message}\n\n")
+            self.print_usage(sys.stderr)
+            sys.stderr.write("\nSee 'bricklayers_error_log.txt' for details.\n")
+            error_log("Argument parsing error", message)
+            sys.exit(2)
+
     # Auxiliar Functions to Ignore a list of Layers
     def parse_ignore_layers_from_to(value_list):
         # Converts a list of numbers into tuples of (start, end).
@@ -2171,7 +2196,7 @@ if __name__ == "__main__":
         return expanded
 
 
-    parser = argparse.ArgumentParser(
+    parser = ErrorLoggingArgumentParser(
         description=f"""\
 BrickLayers by Geek Detour  ({__version__})
 Post-process GCode for BrickLayers Z-shifting with extrusion adjustments.
@@ -2241,20 +2266,35 @@ Argument names are case-insensitive, so:
                         help="\nSkip adding BrickLayers header to your G-code\n"
                                "Recommended only for automation\n"
                                "(header is helpful for debugging)\n\n")
+    parser.add_argument("-noLogging", action="store_true",
+                        help="\nDisables any Logging from BrickLayers\n"
+                               "(NOT FULLY IMPLEMENTED YET)\n\n")
 
     args = parser.parse_args()
 
     # Create a case-insensitive argument dictionary (keys are lowercase, values stay unchanged)
     args_dict = {k.lower(): v for k, v in vars(args).items()}  # Preserve user-provided values
 
-    error_marker = "❌ Error: " if sys.stderr.encoding.lower() == "utf-8" else "[ERROR] "
 
+    if not args_dict["nologging"]:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        log_file_path = os.path.join(script_dir, "bricklayers_log.txt")
+        logging.basicConfig(
+            filename=log_file_path,
+            filemode="a", # change to "w" if you only want to see the latest run.
+            level=logging.DEBUG,
+            format="%(asctime)s - %(message)s"
+        )
+
+
+    error_marker = "❌ Error: " if sys.stderr.encoding.lower() == "utf-8" else "[ERROR] "
 
     def gcode_opener(path, flags):
         with open(path, "rb") as f:  # Open in binary mode
             header = f.read(4)  # Read the first 4 bytes
         if header == b"GCDE":  # Use byte-string for direct comparison
             print(f"{error_marker}The file '{path}' is a binary G-code file, which is not supported. Disable Binary G-code in your slicer settings.", file=sys.stderr)
+            error_log("Binary G-code file", path)
             sys.exit(1)  # Exit immediately
         return os.open(path, flags)  # Open the file descriptor only if valid
 
@@ -2403,6 +2443,7 @@ Argument names are case-insensitive, so:
             print(" Enabled:              ", args_dict["enabled"])
             print(" Verbosity:            ", args_dict["verbosity"])
             print(" Include Header:       ", "No" if args_dict["noheader"] else "Yes")
+            print(" Logging:              ", "No" if args_dict["nologging"] else "Yes")
             print(" Python Interpreter:   ", python_imp)
             print(" Python Version:       ", python_ver)
             print(" OS:                   ", os_info)
@@ -2410,6 +2451,7 @@ Argument names are case-insensitive, so:
 
         logger.debug(input_file)
         logger.debug(final_output_file)
+
         input_file_size = os.path.getsize(input_file)
 
         if verbosity > 0:
@@ -2486,3 +2528,19 @@ Argument names are case-insensitive, so:
 
     else:
         print("⚠️ Brick Layers is disabled (-enabled 0). No modifications applied.")
+
+
+if __name__ == "__main__":
+    import sys
+
+    try:
+        main()
+    except Exception:
+        tb = traceback.format_exc()  # Capture immediately
+
+        # Print full traceback to screen
+        print(f"\n💥 Unexpected runtime error!\n\n", file=sys.stderr)
+        print(tb, file=sys.stderr)
+        print(f"\nSee 'bricklayers_error_log.txt' for a saved copy.", file=sys.stderr)
+        error_log("Unexpected runtime error!", tb)
+        sys.exit(1)
