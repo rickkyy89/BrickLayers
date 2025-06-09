@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 __version__ = "v0.2.1-10-g6409588"  # Updated by GitHub Actions
 
+#Brick Layers by rickkyy from Geek Detour
+#tutte le modifiche implementate le trovo cercando mod:
+
+
 # Brick Layers by Geek Detour
 # Interlocking Layers Post-Processing Script for PrusaSlicer, OrcaSlicer, and BambuStudio
 #
@@ -947,8 +951,13 @@ class BrickLayersProcessor:
 
     Optimized for efficiency using **line-by-line processing**, for processing Big Gcode files
     """
-    def __init__(self, extrusion_global_multiplier: float = 1.05, start_at_layer: int = 3, layers_to_ignore = None, verbosity: int = 0, progress_callback: Optional[Callable[[dict], None]] = None):
-        self.extrusion_global_multiplier = extrusion_global_multiplier
+    # def __init__(self, extrusion_global_multiplier: float = 1.05, start_at_layer: int = 3, layers_to_ignore = None, verbosity: int = 0, progress_callback: Optional[Callable[[dict], None]] = None):
+    #     self.extrusion_global_multiplier = extrusion_global_multiplier # mod:questo lo piallo
+    def __init__(self, multiplier_default: float = 1.0, multiplier_outer: float = 1.0, multiplier_inner: float = 1.05, multiplier_infill: float = 1.0, start_at_layer: int = 3, layers_to_ignore = None, verbosity: int = 0, progress_callback: Optional[Callable[[dict], None]] = None): #mod: questo è quello nuovo
+        self.multiplier_default = multiplier_default
+        self.multiplier_outer = multiplier_outer
+        self.multiplier_inner = multiplier_inner
+        self.multiplier_infill = multiplier_infill
         self.start_at_layer = start_at_layer
         self.layers_to_ignore = layers_to_ignore
         self.verbosity = verbosity
@@ -1596,7 +1605,8 @@ class BrickLayersProcessor:
 
 
                         # Actually adding the internal perimeter line, with a recalculated extrusion:
-                        calculated_line = BrickLayersProcessor.new_line_from_multiplier(deffered_line, extrusion_multiplier)
+                        # calculated_line = BrickLayersProcessor.new_line_from_multiplier(deffered_line, extrusion_multiplier) # mod: sostituisco questa linea con la seguente
+                        calculated_line = BrickLayersProcessor.new_line_from_multiplier(deffered_line, self.multiplier_inner)
                         buffer.append(calculated_line) # Actual Insertion of the Loop Line
 
 
@@ -1668,8 +1678,9 @@ class BrickLayersProcessor:
         special_accel_command = None
 
         # Extrusion Multipliers:
-        extrusion_multiplier = extrusion_global_multiplier # keeping a separate name in case I want to change the extrusion_multiplier at some layers
-        first_layer_multiplier = extrusion_global_multiplier * 1.5
+        # extrusion_multiplier = extrusion_global_multiplier # keeping a separate name in case I want to change the extrusion_multiplier at some layers
+        # first_layer_multiplier = extrusion_global_multiplier * 1.5
+        # mod:queste due sopra le piallo
 
         # Applying just a "fourth" of the increment on `;WIDTH:` for a more realistic preview
         # otherwhise it looks incredibly exagerated (it doesn't affect the printing)
@@ -1723,11 +1734,11 @@ class BrickLayersProcessor:
             myline = from_gcode(line) # Data Structure containing the GCODE ("content") of the current line
             myline.object = feature.current_object
 
-
-            if feature.layer == start_at_layer:
-                extrusion_multiplier = first_layer_multiplier
-            else:
-                extrusion_multiplier = extrusion_global_multiplier
+            #mod: questo if lo piallo
+            # if feature.layer == start_at_layer:
+            #     extrusion_multiplier = first_layer_multiplier
+            # else:
+            #     extrusion_multiplier = extrusion_global_multiplier
 
 
             #logger.info(f"IP: {feature.internal_perimeter}, JL: {feature.justleft_internal_perimeter} - Line: {line_number}, gcode:{line}")
@@ -1924,7 +1935,8 @@ class BrickLayersProcessor:
 
                                 
                                 # Here the actual internal perimeter line is added, with a calculated multiplier:
-                                calculated_line = BrickLayersProcessor.new_line_from_multiplier(kept_line, extrusion_multiplier)
+                                # calculated_line = BrickLayersProcessor.new_line_from_multiplier(kept_line, extrusion_multiplier) # mod:sostituisco questa riga con la seguente
+                                calculated_line = BrickLayersProcessor.new_line_from_multiplier(kept_line, self.multiplier_inner)
                                 buffer_lines.append(calculated_line)
 
 
@@ -2006,11 +2018,53 @@ class BrickLayersProcessor:
             #   All the lines will go through here (except the Internal Perimeter ones)
             #   Being appended to the buffer one by one
             #   (layer changes write the buffer to the output file)
-            #
+            # mod: questo blocco di seguito lo piallo
+            # if not feature.internal_perimeter:
+            #     # Adds all the normal lines to the buffer:
+            #     if myline is not None:
+            #         buffer_lines.append(myline)
+
+            #     self.last_noninternalperimeter_state = current_state
+            #     if simulator.moved_in_xy:
+            #         myline.current = current_state
+            #         self.last_noninternalperimeter_xy_line = myline
+            # mod: e lo sostituisco con:
             if not feature.internal_perimeter:
-                # Adds all the normal lines to the buffer:
-                if myline is not None:
-                    buffer_lines.append(myline)
+                # This line is NOT an internal perimeter. Apply multipliers for other features.
+                if simulator.is_extruding and simulator.moved_in_xy and not myline.gcode.startswith("G92"):
+                    # Select the correct multiplier based on the current feature type
+                    current_multiplier = self.multiplier_default
+                    
+                    if feature.current_type == feature.SANE_OUTERPERIMETER:
+                        current_multiplier = self.multiplier_outer
+                    elif feature.current_type in {"Solid infill", "Sparse infill", "Top solid infill", "Internal Bridge", "Bridge"}:
+                        current_multiplier = self.multiplier_infill
+                    # Other features like Skirt, Brim, Support will use multiplier_default
+
+                    # Apply the multiplier only if it's not 1.0
+                    if current_multiplier != 1.0:
+                        myline.previous = previous_state
+                        myline.current = current_state
+                        # If the gcode was using absolute extrusion, we need to switch to relative to apply a multiplier
+                        is_absolute_extrusion = not myline.current.relative_extrusion
+                        if is_absolute_extrusion:
+                            buffer_lines.append(from_gcode("M83 ; BRICK: Temp Relative for Multiplier\n"))
+                        
+                        calculated_line = self.new_line_from_multiplier(myline, current_multiplier)
+                        buffer_lines.append(calculated_line)
+                        
+                        if is_absolute_extrusion:
+                            buffer_lines.append(from_gcode("M82 ; BRICK: Restore Absolute Extrusion\n"))
+                            # Reset the absolute extruder position
+                            buffer_lines.append(from_gcode(f"G92 E{myline.current.e} ; BRICK: Restore E\n"))
+                    else:
+                        # No multiplier to apply, just add the line
+                        if myline is not None:
+                            buffer_lines.append(myline)
+                else:
+                    # Not an extrusion line (e.g., travel move), just add it
+                    if myline is not None:
+                        buffer_lines.append(myline)
 
                 self.last_noninternalperimeter_state = current_state
                 if simulator.moved_in_xy:
@@ -2235,9 +2289,24 @@ Argument names are case-insensitive, so:
                          "python bricklayers.py 3dbenchy.gcode -outputFolder ./modified -outputFilePostfix\n"
                          " -> Saves as './modified/3dbenchy_brick.gcode'\n\n",
                     default=None)
-    parser.add_argument("-extrusionMultiplier", type=float, default=1.05,
-                        help="\nExtrusion multiplier for first layer\n"
-                             "Default: 1.05x\n\n")
+    # parser.add_argument("-extrusionMultiplier", type=float, default=1.05,
+    #                     help="\nExtrusion multiplier for first layer\n"
+    #                          "Default: 1.05x\n\n")
+    #da qui in poi i nuovi multiplier
+    parser.add_argument("-multiplierOuter", type=float, default=1.0,
+                        help="\nExtrusion multiplier for OUTER perimeters.\n"
+                             "Default: 1.0 (no change)\n\n")
+    parser.add_argument("-multiplierInner", type=float, default=1.05,
+                        help="\nExtrusion multiplier for INNER perimeters (the ones affected by BrickLayers).\n"
+                             "Default: 1.05\n\n")
+    parser.add_argument("-multiplierInfill", type=float, default=1.0,
+                        help="\nExtrusion multiplier for all types of INFILL (sparse, solid, top, bridge).\n"
+                             "Default: 1.0 (no change)\n\n")
+    #fine dei nuovi multiplier
+
+    parser.add_argument("-multiplierDefault", type=float, default=1.0,
+                        help="\nDefault extrusion multiplier for features without a specific multiplier (e.g., support, skirt).\n"
+                             "Default: 1.0 (no change)\n\n")
     parser.add_argument("-startAtLayer", type=int, default=3, 
                         help="\nPreserves the first layers\n"
                              "(default: 3). Set to 1 to start from the very first layer\n\n")
@@ -2380,12 +2449,21 @@ Argument names are case-insensitive, so:
 
 
         # Setting up the BrickProcessor:
+        # processor = BrickLayersProcessor(
+        #     extrusion_global_multiplier=args_dict["extrusionmultiplier"],
+        #     start_at_layer=args_dict["startatlayer"],
+        #     layers_to_ignore=final_ignored_layers,
+        #     verbosity=verbosity
+        # ) #mod: di seguito il nuovo processor
         processor = BrickLayersProcessor(
-            extrusion_global_multiplier=args_dict["extrusionmultiplier"],
+            multiplier_default=args_dict["multiplierdefault"],
+            multiplier_outer=args_dict["multiplierouter"],
+            multiplier_inner=args_dict["multiplierinner"],
+            multiplier_infill=args_dict["multiplierinfill"],
             start_at_layer=args_dict["startatlayer"],
             layers_to_ignore=final_ignored_layers,
             verbosity=verbosity
-        )
+        ) #mod: fine del nuovo processor
         processor.experimental_arcflick = False
         processor.set_progress_callback(update_progress)  # Full-fledged terminal progress indicator
         #processor.set_progress_callback(update_progress_print) # Super simple progress-indicator example
@@ -2417,7 +2495,12 @@ Argument names are case-insensitive, so:
             "Input Source"         : "Slicer" if is_uploading else "Command Line",
             "Starting at Layer"    : args_dict["startatlayer"],
             "Ignored Layers"       : final_ignored_layers,
-            "Extrusion Multiplier" : args_dict["extrusionmultiplier"]
+            #"Extrusion Multiplier" : args_dict["extrusionmultiplier"] #mod: questo l'ho sostituito con...
+            "Multiplier Inner"     : args_dict["multiplierinner"],
+            "Multiplier Outer"     : args_dict["multiplierouter"],
+            "Multiplier Infill"    : args_dict["multiplierinfill"],
+            "Multiplier Default"   : args_dict["multiplierdefault"]
+            #mod: tutti questi
         }
         processor.set_header_info(header_info)
         processor.enable_header = not args_dict["noheader"]
@@ -2437,7 +2520,11 @@ Argument names are case-insensitive, so:
             print(f"▁▃▅▆ Brick Layers ▆▅▃▁  ({__version__})\n")
             print(" Input File:           ", input_file)
             print(" Output File:          ", final_output_file)
-            print(" Extrusion Multiplier: ", args_dict["extrusionmultiplier"])
+            #print(" Extrusion Multiplier: ", args_dict["extrusionmultiplier"]) # mod: sostituito
+            print(" Multiplier Default: ", args_dict["multiplierdefault"])
+            print(" Multiplier Inner: ", args_dict["multiplierinner"])
+            print(" Multiplier Outer: ", args_dict["multiplierouter"])
+            print(" Multiplier Infill: ", args_dict["multiplierinfill"])
             print(" Layer to Start:       ", args_dict["startatlayer"])
             print(" Layers to Ignore:     ", final_ignored_layers)
             print(" Enabled:              ", args_dict["enabled"])
