@@ -1652,7 +1652,7 @@ class BrickLayersProcessor:
         """
         from_gcode = GCodeLine.from_gcode #cache the lookup
 
-        extrusion_global_multiplier = self.extrusion_global_multiplier
+        # extrusion_global_multiplier = self.extrusion_global_multiplier # mod:questo non serve più
         start_at_layer = self.start_at_layer
         layers_to_ignore = self.layers_to_ignore
         verbosity = self.verbosity
@@ -1684,7 +1684,8 @@ class BrickLayersProcessor:
 
         # Applying just a "fourth" of the increment on `;WIDTH:` for a more realistic preview
         # otherwhise it looks incredibly exagerated (it doesn't affect the printing)
-        extrusion_multiplier_preview = (((extrusion_multiplier - 1) / 4) +1)
+        # extrusion_multiplier_preview = (((extrusion_multiplier - 1) / 4) +1) # sostituisco questa riga con la successiva
+        extrusion_multiplier_preview = (((self.multiplier_inner - 1) / 4) + 1)
 
         # Buffers:
         buffer_lines = []  # Temporary storage for parsed line objects
@@ -1982,13 +1983,26 @@ class BrickLayersProcessor:
                 myline.previous = previous_state
                 myline.current = current_state
 
+                # Makes the very last layer 'flatter' (no brick) in a very hacked way!!!! mod: questo blocco lo sostituisco con quello dopo
+                # if (feature.current_type == "Custom" and current_state.z > 0):
+                #     feature.z = feature.z - feature.height/2
+                #     extrusion_multiplier = extrusion_multiplier / 2
+
+                # if not self.justcalculate:
+                #     self.generate_deffered_perimeters(myline, deffered_perimeters, extrusion_multiplier, extrusion_multiplier_preview, feature, simulator, buffer_lines)
+                # mod: questo è il blocco che sostituisce
+                current_inner_multiplier = self.multiplier_inner
+                
                 # Makes the very last layer 'flatter' (no brick) in a very hacked way!!!!
                 if (feature.current_type == "Custom" and current_state.z > 0):
                     feature.z = feature.z - feature.height/2
-                    extrusion_multiplier = extrusion_multiplier / 2
+                    # Applica la riduzione al moltiplicatore dei perimetri interni
+                    current_inner_multiplier = current_inner_multiplier / 2
 
                 if not self.justcalculate:
-                    self.generate_deffered_perimeters(myline, deffered_perimeters, extrusion_multiplier, extrusion_multiplier_preview, feature, simulator, buffer_lines)
+                    # Passiamo il moltiplicatore corretto
+                    self.generate_deffered_perimeters(myline, deffered_perimeters, current_inner_multiplier, extrusion_multiplier_preview, feature, simulator, buffer_lines)
+                # mod: fine del blocco
 
                 if feature.current_type == "external_perimeter":
                     # EDGE Case of the external perimeter continuing from the previous layer...
